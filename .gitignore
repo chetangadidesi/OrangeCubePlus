@@ -1,0 +1,12 @@
+# Visual Studio / CMake Internal Guts
+.vs/
+.cmake/
+out/
+build/
+bin/
+obj/
+
+# Project files you don't need on GitHub
+*.slnx
+*.db
+*.opendb
