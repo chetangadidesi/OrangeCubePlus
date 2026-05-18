@@ -7,6 +7,7 @@ import time
 from mavlink_handler import MAVLinkHandler
 from motors import MotorController
 from controller import ProportionalController
+from lidar import LidarHandler
 
 class IMUVisualizer(QtWidgets.QMainWindow):
     def __init__(self, mav_handler):
@@ -77,9 +78,24 @@ if __name__ == "__main__":
     mav.start()
 
     time.sleep(2)
-
+    lidar = LidarHandler(port='COM5', baudrate=115200)
+    lidar.start()
+    time.sleep(2)
+    
     motors = MotorController(connection=mav.connection)
-    ctrl = ProportionalController(mav_handler=mav, motor_controller=motors)
+    ctrl = ProportionalController(
+        mav_handler=mav,
+        motor_controller=motors,
+        lidar_handler=lidar,
+        kp_roll=0.01,          # tune this
+        kp_pitch_inner=0.01,   # tune this
+        kp_pitch_outer=0.5,    # tune this — maps cm error → degrees
+        base_throttle=0.15,
+        reference_distance=20.0,  # cm — distance you want to hold from wall
+        max_pitch=10.0,          # degrees — safety clamp on pitch command
+        roll_enabled= False,
+        pitch_enabled= True
+    )
 
     # Run controller in background thread so GUI stays responsive
     ctrl_thread = threading.Thread(target=ctrl.run, kwargs={"duration_sec": float('inf')}, daemon=True)
