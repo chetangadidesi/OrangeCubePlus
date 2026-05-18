@@ -1,5 +1,6 @@
 import time
 import sys
+import math
 
 
 class ProportionalController:
@@ -48,15 +49,36 @@ class ProportionalController:
         #        inner loop drives actual pitch to that target
         # -------------------------------------------------------
         distance = self.lidar.get_distance()
+        angle = self.lidar.get_angle()
 
-        if distance is not None:
-            distance_error = distance - self.reference_distance      # cm
-            target_pitch   = self.kp_pitch_outer * distance_error   # degrees
-            target_pitch   = max(-self.max_pitch, min(self.max_pitch, target_pitch))  # clamp
+        target_pitch = 0.0
+        target_roll = 0.0
+
+        if distance is not None and angle is not None:
+            theta = math.radians(angle)
+
+            # Error: positive if obstacle is farther than desired,
+            # negative if obstacle is too close
+            distance_error = distance - self.reference_distance
+
+            # Direction components
+            front_component = math.cos(theta)
+            right_component = math.sin(theta)
+
+            # Desired pitch/roll based on obstacle direction
+            target_pitch = self.kp_pitch_outer * distance_error * front_component
+            target_roll  = self.kp_pitch_outer * distance_error * right_component
+
+            # Safety clamps
+            target_pitch = max(-self.max_pitch, min(self.max_pitch, target_pitch))
+            target_roll  = max(-self.max_pitch, min(self.max_pitch, target_roll))
         else:
-            target_pitch = 0.0  # no lidar data yet — hold level
+            target_pitch = 0.0
+            target_roll = 0.0
 
+        roll = self.get_roll()
         pitch = self.get_pitch()
+        roll_correction = self.kp_roll * (target_roll - roll) if self.roll_enabled else 0.0
         pitch_correction = self.kp_pitch_inner * (target_pitch - pitch) if self.pitch_enabled else 0.0
 
         # -------------------------------------------------------
