@@ -416,8 +416,6 @@ if __name__ == "__main__":
         print("\nSAFETY CHECK:")
         print("  - Propellers installed correctly only if you are ready for real flight.")
         print("  - Drone must be outside, level, with clear area.")
-        print("  - QGC/RC should be ready to switch to Hold/Land.")
-        print("  - This script will NOT auto-disarm at the end.")
         print("  - Target movement is intentionally small.")
 
         input("\nPress ENTER to start GPS movement test...")
