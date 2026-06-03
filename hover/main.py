@@ -108,34 +108,69 @@ if __name__ == "__main__":
     print("--- INITIATING HOVER ---")
     # Drop to 50% to lock in the hover
     mav.virtual_throttle = 500 
-    time.sleep(2) 
+    time.sleep(5) 
     
-    print("--- FLYING FORWARD ---")
-    # Now that it thinks it is flying, command the pitch!
-    mav.virtual_pitch = 500  
-    time.sleep(3) 
+    #print("--- PITCH FORWARD ---")
+    #mav.virtual_pitch = 200  
+    #time.sleep(5) 
     
-    print("--- STOPPING (LEVEL HOVER) ---")
-    mav.virtual_pitch = 0    
+    #print("--- (LEVEL HOVER) ---")
+    #mav.virtual_pitch = 0  
+    #time.sleep(2)
+    
+    #print("--- 4. ROLL RIGHT ---")
+    #mav.virtual_roll = 200  
+    #time.sleep(5) 
+    
+    #print("--- 5. HOVER (LEVEL) ---")
+    #mav.virtual_roll = 0    
+    #time.sleep(5)
+    
+    print("--- 6. YAW RIGHT (SPIN) ---")
+    mav.virtual_yaw = -300  
+    time.sleep(5) 
+    
+    print("--- 7. HOVER (LEVEL) ---")
+    mav.virtual_yaw = 0    
+    time.sleep(5)
+    
+    #print("--- 4. ROLL RIGHT ---")
+    #mav.virtual_roll = 200  
+    #time.sleep(5) 
+    
+    #print("--- 5. HOVER (LEVEL) ---")
+    #mav.virtual_roll = 0    
+    #time.sleep(5)
+      
+    print("--- INITIATING HOVER ---")
+    mav.virtual_throttle = 500 
+    time.sleep(5)  # Hover for 5 seconds
+    
     # ==========================================
-    # Launch GUI while it is "hovering"
-    app = QtWidgets.QApplication(sys.argv)
-    gui = IMUVisualizer(mav_handler=mav)
-    gui.show()
-    
-    exit_code = app.exec_()
-    
-    # Clean shutdown
-    print("Shutting down... dropping throttle and disarming.")
+    # --- THE KILL SWITCH ---
+    # ==========================================
+    print("\n--- SHUTTING DOWN ---")
     mav.virtual_throttle = 0
-    time.sleep(0.5)
+    time.sleep(0.5) 
     
-    # Send disarm command (Param 1 = 0)
+    # Send FORCE disarm command
     mav.connection.mav.command_long_send(
         mav.connection.target_system,
         mav.connection.target_component,
         mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
-        0, 0, 0, 0, 0, 0, 0, 0
+        0, 
+        0,      # Disarm
+        21196,  # Force bypass
+        0, 0, 0, 0, 0
     )
-    
-    sys.exit(exit_code)
+    time.sleep(1) 
+    mav.stop()
+    print("Drone safely disarmed. Launching GUI for data review...")
+
+    # ==========================================
+    # --- LAUNCH GUI POST-FLIGHT ---
+    # ==========================================
+    app = QtWidgets.QApplication(sys.argv)
+    window = IMUVisualizer(mav) 
+    window.show()
+    sys.exit(app.exec_())
