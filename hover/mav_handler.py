@@ -22,6 +22,8 @@ class MAVLinkHandler:
         self.thread = None
         self.virtual_throttle = 0
         self.virtual_pitch = 0
+        self.virtual_roll = 0
+        self.virtual_yaw = 0
         # Sliding window to only store last 200 data elements from the continuous stream
         self.data_ax = collections.deque(maxlen=200) # Acceleration in x
         self.data_ay = collections.deque(maxlen=200) # Acceleration in y
@@ -89,9 +91,9 @@ class MAVLinkHandler:
             self.connection.mav.manual_control_send(
                 self.connection.target_system,
                 self.virtual_pitch,  # Pitch 
-                0,  # Roll 
+                self.virtual_roll,  # Roll 
                 self.virtual_throttle, # Our dynamic throttle variable
-                0,  # Yaw 
+                self.virtual_yaw,  # Yaw 
                 0   # Buttons 
             )
 
