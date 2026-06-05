@@ -192,6 +192,10 @@ if __name__ == "__main__":
     mav.start()
     time.sleep(1)
 
+    print("Requesting Altitude Mode...")
+    mav.set_altitude_mode()
+    time.sleep(0.5)
+    
     # ── 2. ARM THE DRONE ──────────────────────────────────────────────
     print("\n--- ARMING ---")
     armed = mav.arm()
@@ -202,12 +206,12 @@ if __name__ == "__main__":
 
     time.sleep(0.5)
 
-    # ── 3. Initialize OFFBOARD (Target: 2 meters up) ──────────────────
+
+    # ── 4. Initialize OFFBOARD (Target: 2 meters up) ──────────────────
     print("\n--- PREPARING OFFBOARD AUTONOMOUS TAKEOFF ---")
     
-    # The drone is currently armed and idling. 
-    # This will stream the 2m target, switch modes, and cause the takeoff!
-    offboard_ok = mav.init_offboard(pre_stream_sec=3, takeoff_alt=2.0)
+    # Now that the FC thinks it's flying, it will gladly accept the mode switch!
+    offboard_ok = mav.init_offboard(pre_stream_sec=3, takeoff_alt=1.0)
 
     if not offboard_ok:
         print("Failed to enter offboard. Shutting down.")
@@ -215,9 +219,9 @@ if __name__ == "__main__":
         mav.stop()
         sys.exit()
 
-    # ── 4. HOVER ──────────────────────────────────────────────────────
+    # ── 5. HOVER ──────────────────────────────────────────────────────
     print("\nHovering at 2 meters for 10 seconds...")
-    time.sleep(10)
+    time.sleep(3)
 
     # ── 5. AUTO-LAND ──────────────────────────────────────────────────
     print("\n--- COMMANDING OFFBOARD DESCENT ---")
