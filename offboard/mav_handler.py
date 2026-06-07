@@ -16,7 +16,7 @@ GPS_RAW_INT_ID = 24
 GLOBAL_POSITION_INT_ID = 33
 
 class MAVLinkHandler:
-    def __init__(self, port='COM13', baud=57600):
+    def __init__(self, port='COM12', baud=57600):
         self.port = port
         self.baud = baud
         self.running = False
@@ -436,9 +436,12 @@ class MAVLinkHandler:
         lat, lon, rel_alt = pos
         
         # --- NEW: Calculate the target altitude in the air ---
-        target_alt = rel_alt + takeoff_alt 
+        target_alt = takeoff_alt
+
+        target_alt = max(0.3, min(target_alt, 3.0))
         
-        print(f"\nOffboard target setpoint → Lat: {lat:.7f}, Lon: {lon:.7f}, RelAlt: {target_alt:.2f} m")
+        print(f"\nCurrent EKF rel_alt: {rel_alt:.2f} m")
+        print(f"Offboard target setpoint → Lat: {lat:.7f}, Lon: {lon:.7f}, RelAlt: {target_alt:.2f} m")
         
         # Set the background thread to stream the IN-AIR target
         self.set_offboard_setpoint(lat, lon, target_alt)
