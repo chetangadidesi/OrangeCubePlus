@@ -2,6 +2,7 @@ import sys
 import time
 from PyQt5 import QtWidgets, QtCore
 import pyqtgraph as pg
+import math
 
 from mav_handler import MAVLinkHandler
 from pymavlink import mavutil
@@ -65,127 +66,11 @@ class IMUVisualizer(QtWidgets.QMainWindow):
         super().closeEvent(event)
 
 
-# ------------------------------------------------------------------ #
-#  Main flight script                                                 #
-# ------------------------------------------------------------------ #
-
-# if __name__ == "__main__":
-
-#     mav = MAVLinkHandler(port='COM13', baud=57600)
-#     mav.connect()
-
-#     # ── 1. Start telemetry ────────────────────────────────────────────
-#     print("Starting telemetry and command stream...")
-#     mav.start()
-#     time.sleep(1)
-
-#     # ── 2. Wait for EKF / GPS BEFORE Arming ───────────────────────────
-#     print("\n--- WAITING FOR EKF ALIGNMENT ---")
-#     mav.wait_for_gps_fix(min_fix_type=3)
-#     pos = mav.read_global_position()
-#     if pos is None:
-#         print("EKF never aligned. Shutting down.")
-#         mav.stop()
-#         sys.exit()
-
-#     # ── 3. Set Altitude Hold mode and pre-load throttle ───────────────
-#     mav.set_altitude_mode()
-#     mav.virtual_throttle = 500
-#     time.sleep(1)
-
-#     # ── 4. Arm & Fly ──────────────────────────────────────────────────
-#     mav.arm()
-#     time.sleep(0.5)
-#     # ================================================================ #
-#     #  PHASE 1 — Altitude-Hold flight (manual-control joystick)        #
-#     # ================================================================ #
-
-#     print("\n--- TAKEOFF BLIP ---")
-#     mav.virtual_throttle = 0
-#     time.sleep(1.5)
-
-#     print("--- HOVER ---")
-#     mav.virtual_throttle = 0
-#     time.sleep(3)
-
-#     # print("--- YAW RIGHT ---")
-#     # mav.virtual_yaw = -300
-#     # time.sleep(3)
-
-#     # print("--- STOP YAW ---")
-#     # mav.virtual_yaw = 0
-#     # time.sleep(3)
-
-#     # print("--- HOVER ---")
-#     # mav.virtual_throttle = 500
-#     # time.sleep(3)
-
-#     # ================================================================ #
-#     #  PHASE 2 — OFFBOARD position-hold                                #
-#     # ================================================================ #
-#     #
-#     #  init_offboard() does the full sequence automatically:
-#     #    • waits for a 3-D GPS fix
-#     #    • reads the current fused position
-#     #    • pre-streams setpoints for 3 s  (required by PX4)
-#     #    • sends MAV_CMD_DO_SET_MODE → OFFBOARD
-#     #    • enables continuous setpoint streaming in the background thread
-#     #
-#     #  If your environment has no GPS (bench test), comment out this
-#     #  entire block and skip straight to the SHUTDOWN section.
-#     # ---------------------------------------------------------------- #
-
-#     print("\n--- ENTERING OFFBOARD MODE ---")
-    
-#     offboard_ok = mav.init_offboard(pre_stream_sec=3)
-#     print(offboard_ok)
-
-
-#     if offboard_ok:
-#         print("Holding current GPS position for 10 seconds...")
-#         time.sleep(10)
-
-#         # ── Optional: command a new GPS waypoint ──────────────────────
-#         # new_lat = mav.offboard_lat + 0.00005   # ~5 m north
-#         # mav.set_offboard_setpoint(new_lat, mav.offboard_lon, mav.offboard_alt)
-#         # time.sleep(5)
-
-#         print("--- EXITING OFFBOARD ---")
-#         mav.exit_offboard()
-#         time.sleep(2)
-#     else:
-#         print("OFFBOARD not working")
-#         print("\n--- SHUTTING DOWN ---")
-#         mav.virtual_throttle = 0
-#         time.sleep(0.5)
-#         mav.disarm(force=True)
-#         mav.stop()
-
-#     # ================================================================ #
-#     #  SHUTDOWN                                                         #
-#     # ================================================================ #
-
-#     print("\n--- SHUTTING DOWN ---")
-#     mav.virtual_throttle = 0
-#     time.sleep(0.5)
-
-#     mav.disarm(force=True)
-#     time.sleep(1)
-
-#     mav.stop()
-#     print("Drone safely disarmed. Launching GUI for data review...")
-
-#     # ── Post-flight GUI ───────────────────────────────────────────────
-#     app = QtWidgets.QApplication(sys.argv)
-#     window = IMUVisualizer(mav)
-#     window.show()
-#     sys.exit(app.exec_())
-
-
 if __name__ == "__main__":
 
     mav = MAVLinkHandler(port='COM13', baud=57600)
     mav.connect()
+
 
     # ── 1. Start telemetry ────────────────────────────────────────────
     print("Starting telemetry and command stream...")
@@ -222,19 +107,40 @@ if __name__ == "__main__":
     # ── 5. HOVER ──────────────────────────────────────────────────────
     print("\nHovering at 2 meters for 10 seconds...")
     time.sleep(3)
+    
+    # Save home BEFORE any set_offboard_setpoint call overwrites it
+    home_lat = mav.offboard_lat
+    home_lon = mav.offboard_lon
+
+    def offset_gps(lat, lon, north_m, east_m):
+        d_lat = north_m / 111_320.0
+        d_lon = east_m  / (111_320.0 * math.cos(math.radians(lat)))
+        return lat + d_lat, lon + d_lon
+
+    print("\n--- FLYING 5 m NORTH ---")
+    new_lat, new_lon = offset_gps(home_lat, home_lon, north_m=-3, east_m=0)
+    mav.set_offboard_setpoint(new_lat, new_lon, 1.0)
+    time.sleep(5)
+
+    print("\n--- RETURNING HOME ---")
+    mav.set_offboard_setpoint(home_lat, home_lon, 1.0)  # use saved home
+    time.sleep(5)
 
     # ── 5. AUTO-LAND ──────────────────────────────────────────────────
     print("\n--- COMMANDING OFFBOARD DESCENT ---")
-    mav.set_offboard_setpoint(mav.offboard_lat, mav.offboard_lon, 0.0)
-    time.sleep(5) 
+
+    for alt in [1.0, 0.6, 0.2, 0.0]:
+        mav.set_offboard_setpoint(mav.offboard_lat, mav.offboard_lon, alt)
+        print(f"Descending setpoint: {alt:.1f} m")
+        time.sleep(2)
 
     # ── 6. SHUTDOWN ───────────────────────────────────────────────────
     print("\n--- SHUTTING DOWN ---")
     mav.exit_offboard()
-    time.sleep(0.5)
+    time.sleep(20)
 
     mav.disarm(force=True)
-    time.sleep(1)
+    time.sleep(20)
 
     mav.stop()
     print("Drone safely disarmed. Launching GUI for data review...")
