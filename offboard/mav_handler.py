@@ -16,7 +16,7 @@ GPS_RAW_INT_ID = 24
 GLOBAL_POSITION_INT_ID = 33
 
 class MAVLinkHandler:
-    def __init__(self, port='COM12', baud=57600):
+    def __init__(self, port='COM13', baud=57600):
         self.port = port
         self.baud = baud
         self.running = False
@@ -317,7 +317,7 @@ class MAVLinkHandler:
         print("Waiting for mode confirmation via raw Heartbeat...")
         
         start_time = time.time()
-        while time.time() - start_time < 5:
+        while time.time() - start_time < 10:
             # PX4 packs the main mode in the 3rd byte of custom_mode.
             # We bit-shift by 16 to read it.
             main_mode = (self.fc_custom_mode >> 16) & 0xFF
@@ -418,7 +418,7 @@ class MAVLinkHandler:
         """
         self.offboard_lat = lat
         self.offboard_lon = lon
-        self.offboard_alt = rel_alt
+        self.offboard_alt = abs(rel_alt)
 
     # Add takeoff_alt to the arguments (default is 0 for ground tests)
     def init_offboard(self, pre_stream_sec=3, takeoff_alt=0.0):
@@ -436,12 +436,15 @@ class MAVLinkHandler:
         lat, lon, rel_alt = pos
         
         # --- NEW: Calculate the target altitude in the air ---
+        # target_alt = rel_alt + takeoff_alt 
+        
         target_alt = takeoff_alt
 
         target_alt = max(0.3, min(target_alt, 3.0))
         
         print(f"\nCurrent EKF rel_alt: {rel_alt:.2f} m")
-        print(f"Offboard target setpoint → Lat: {lat:.7f}, Lon: {lon:.7f}, RelAlt: {target_alt:.2f} m")
+        
+        print(f"\nOffboard target setpoint → Lat: {lat:.7f}, Lon: {lon:.7f}, RelAlt: {target_alt:.2f} m")
         
         # Set the background thread to stream the IN-AIR target
         self.set_offboard_setpoint(lat, lon, target_alt)
