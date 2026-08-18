@@ -10,6 +10,7 @@ from mav_handler import MAVLinkHandler
 # Configuration
 # ============================================================
 
+
 PORT = "COM9"
 BAUD = 57600
 
@@ -18,8 +19,8 @@ TAKEOFF_THROTTLE = 750
 TAKEOFF_TIME = 1.5
 
 PITCH_COMMAND = 200
-ROLL_COMMAND = 200
-YAW_COMMAND = 200
+ROLL_COMMAND = 400
+YAW_COMMAND = 300
 
 
 # ============================================================
@@ -125,9 +126,9 @@ class ManualFlightGUI(QtWidgets.QMainWindow):
         movement_layout.setSpacing(8)
 
         self.btn_up = HoldButton("↑\nPITCH")
-        self.btn_down = HoldButton("↓\nPITCH")
-        self.btn_left = HoldButton("←\nROLL")
-        self.btn_right = HoldButton("→\nROLL")
+        self.btn_down = HoldButton("↓\nPITCH ")
+        self.btn_left = HoldButton("←\nROLL ")
+        self.btn_right = HoldButton("→\nROLL ")
 
         for button in [
             self.btn_up,
@@ -155,8 +156,8 @@ class ManualFlightGUI(QtWidgets.QMainWindow):
         yaw_group = QtWidgets.QGroupBox("YAW")
         yaw_layout = QtWidgets.QHBoxLayout(yaw_group)
 
-        self.btn_yaw_left = HoldButton("←\nYAW")
-        self.btn_yaw_right = HoldButton("→\nYAW")
+        self.btn_yaw_left = HoldButton("←\nYAW ")
+        self.btn_yaw_right = HoldButton("→\nYAW ")
 
         self.btn_yaw_left.setMinimumSize(150, 100)
         self.btn_yaw_right.setMinimumSize(150, 100)
@@ -304,7 +305,11 @@ class ManualFlightGUI(QtWidgets.QMainWindow):
         self.status_label.setText("STATUS: CONNECTING...")
 
         try:
-            self.mav = MAVLinkHandler(port=PORT, baud=BAUD)
+            self.mav = MAVLinkHandler(
+                port=PORT,
+                baud=BAUD
+            )
+
             self.mav.connect()
 
             print("Starting telemetry and virtual joystick stream...")
@@ -325,12 +330,13 @@ class ManualFlightGUI(QtWidgets.QMainWindow):
             self.mav.virtual_throttle = HOVER_THROTTLE
             time.sleep(1)
 
-            # Arm — UNA SOLA VEZ
+            # Arm
+            # NOTE: mav.arm() does not return a value (it only prints the
+            # COMMAND_ACK result code to the console), so we can't check
+            # a boolean here. Watch the console output for
+            # "[ACK] Arm Command Result Code: 0" to confirm PX4 accepted it.
             print("Arming...")
-            armed = self.mav.arm()
-
-            if not armed:
-                raise RuntimeError("PX4 did not accept arming.")
+            self.mav.arm()
 
             time.sleep(0.5)
 
@@ -344,6 +350,7 @@ class ManualFlightGUI(QtWidgets.QMainWindow):
             self.mav.virtual_throttle = HOVER_THROTTLE
 
             self.started = True
+
             self.status_label.setText("STATUS: ARMED / HOVER")
             self.set_buttons_enabled(True)
             self.update_command_display()
@@ -351,8 +358,13 @@ class ManualFlightGUI(QtWidgets.QMainWindow):
             print("Manual control ready.")
 
         except Exception as e:
+
             print(f"START ERROR: {e}")
-            self.status_label.setText(f"STATUS: ERROR — {e}")
+
+            self.status_label.setText(
+                f"STATUS: ERROR — {e}"
+            )
+
             self.cleanup_after_failed_start()
 
     # --------------------------------------------------------

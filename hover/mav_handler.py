@@ -22,7 +22,6 @@ class MAVLinkHandler:
         self.thread = None
         self.virtual_throttle = 0
         self.virtual_pitch = 0
-        self.virtual_roll = 0
         self.virtual_yaw = 0
         # Sliding window to only store last 200 data elements from the continuous stream
         self.data_ax = collections.deque(maxlen=200) # Acceleration in x
@@ -91,7 +90,7 @@ class MAVLinkHandler:
             self.connection.mav.manual_control_send(
                 self.connection.target_system,
                 self.virtual_pitch,  # Pitch 
-                self.virtual_roll,  # Roll 
+                0,  # Roll 
                 self.virtual_throttle, # Our dynamic throttle variable
                 self.virtual_yaw,  # Yaw 
                 0   # Buttons 
@@ -186,6 +185,39 @@ class MAVLinkHandler:
                     elif msg.command == mavutil.mavlink.MAV_CMD_DO_SET_MODE:
                         print(f"[ACK] Mode Change Result Code: {msg.result}")
                     
+    def disarm(self, force=True):
+        """
+        Disarms the drone. By default sends the FORCE disarm code so it
+        works even if PX4 thinks it's still "in air" from the throttle
+        blip trick.
+        """
+        print("Sending Disarm command...")
+        self.connection.mav.command_long_send(
+            self.connection.target_system,
+            self.connection.target_component,
+            mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+            0, # Confirmation
+            0, # Param 1: 0 = Disarm
+            21196 if force else 0, # Param 2: FORCE code (same magic number as arm)
+            0, 0, 0, 0, 0
+        )
+
+        # Short diagnostic listen window, same pattern as arm()
+        start_time = time.time()
+        print("Listening for flight controller responses...")
+
+        while time.time() - start_time < 1.5:
+            msg = self.connection.recv_match(blocking=False)
+            if msg:
+                mtype = msg.get_type()
+
+                if mtype == 'STATUSTEXT':
+                    print(f"[FC TEXT] {msg.text}")
+
+                elif mtype == 'COMMAND_ACK':
+                    if msg.command == mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM:
+                        print(f"[ACK] Disarm Command Result Code: {msg.result}")
+
     def set_stabilized_mode(self):
         """
         Sets the PX4 flight mode to Stabilized.
